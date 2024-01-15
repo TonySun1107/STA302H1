@@ -1,1 +1,1 @@
-# STA302H1
+# STA302H1 Wentao Sun
