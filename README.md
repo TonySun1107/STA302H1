@@ -7,3 +7,6 @@ This repository contains a paper that investigates traffic collisions that occur
 - Inputs folder contains a data folder with all raw datas
 - Outputs folder contains the paper, R Markdown file of the paper, and references
 - Script folder contains the R file that imports data from the Toronto Open Data Portal
+
+## LLM Usage Statement 
+No LLMs were used for any aspect of this work.
