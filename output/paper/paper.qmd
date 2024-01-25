@@ -1,0 +1,149 @@
+---
+#title: "Paper"
+#author: "Wentao Sun"
+#format: pdf
+#editor: visual
+---
+
+---
+title: "Traffic Volumes at Intersections Affects Traffic Collisions in Toronto"
+title-block-banner: true
+#subtitle: "TBD"
+abstract: "The City of Toronto, due to its busy intersections and high traffic volumes, is often involved in vehicle collisions that not only have a significant impact on the city's transportation system, but also pose a threat to drivers and pedestrians. This report focuses on investigating traffic collisions that occurred between January 2020 and September 2023 in the City of Toronto. By analyzing the frequency, severity, and specific vehicle types and locations of occurrence of traffic crashes during this time period, we aim to reveal the correlation between traffic flow and the occurrence of crashes. Despite the fact that the City of Toronto has taken several measures to improve road safety, the number of traffic crashes remains high on high volume roads during certain peak hours. This phenomenon suggests that better safety measures should be put in place to address the traffic safety risks associated with high traffic volumes. Data on high-traffic roads and traffic collisions are further analyzed and utilized."
+thanks: "Code and data supporting this analysis is available at: https://github.com/TonySun1107/STA302H1.git"
+author: "Wentao Sun"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+format: pdf
+editor: visual
+toc: TRUE
+number-sections: true
+bibliography: references.bib
+
+---
+
+```{r setup, include=FALSE}
+
+#### Workspace set-up ####
+
+## Load packages
+library(tidyverse) # a collection of data-related packages
+library(knitr) # for kable
+library(janitor)
+#install.packages("kableExtra")
+library(kableExtra)
+#install.packages("here")
+library(here)
+#library(ggbeeswarm)
+library(ggplot2)
+
+```
+
+\newpage
+
+# Introduction
+
+Toronto is one of Canada's most cosmopolitan and modern cities. However, a large population inevitably brings with it a host of transportation problems. Increased car ownership has made Toronto's roads busy. During the morning and evening rush hours, the influx of people and vehicles slows down vehicle traffic.The result of a case study of Toronto, Canada exhibits that entertainment related activities are more likely to appear during evening peak hours[@peakhours]. Heavy traffic may increase the number of safety hazards and increase the likelihood of vehicle collisions. Vehicle collisions can jeopardize the lives of drivers and pedestrians.
+
+Toronto traffic collision data records crashes involving different types of vehicles in a given neighborhood, where the data covers the specific number of injuries or fatalities and the type of accident. After analyzing the data, it is possible to summarize the content of the data to get conclusions as a way to reduce the number of traffic accidents in Toronto. This paper investigates the specific causes of traffic collisions at different times of the day from 2020 to 2023, focusing on whether or not they are hit-and-run and whether or not they cause material damage. 
+
+# Data
+
+The data used in this paper were obtained from Toronto's Open Data Portal by the library [@OpenDataTorontoPortal]. The dataset was processed using R, a computer language designed for statistical computing and graphics (R Core Team 2023), which included stages of downloading, cleaning, analysis, and visualization. And using some support package from 'dplyer'[@citedplyr], 'tidyverse'[@citetidyverse], 'knitr'[@citeknitr], 'janitor'[@citejanitor], 'here'[@citehere], 'kableExtra'[@citekableExtra], 'ggplot2'[@citeggplot2].
+
+## Police Statistical Report - Traffic Collisions
+
+In order to investigate motor vehicle collisions in Toronto, I obtained the "Police Statistical Report - Traffic Collisions" dataset from the Toronto Open Data Portal[@OpenDataTorontoPortal]. This data includes all traffic collision records from December 2020 to 2023. The dataset consists of 257,303 observations traffic collisions samples.
+```{r dataextract, echo=FALSE, message=FALSE}
+
+library(dplyr)
+library(lubridate)
+
+traffic_data <- read_csv(here::here("input/data/traffic_collisions.csv")) |>
+  clean_names() |>
+  drop_na(occ_year)
+#view(traffic_data)
+#names(traffic_data)
+traffic_data <-
+  traffic_data |>
+  rename(
+    year = occ_year,
+    month = occ_month,
+    hour = occ_hour,
+    neighbourhood = neighbourhood_158,
+    ftr_colls = ftr_collisions,
+    pd_colls = pd_collisions
+  )
+
+traffic_data <- traffic_data |>
+  select(year, month, hour,neighbourhood, ftr_colls, pd_colls)
+traffic_data |>
+  slice(1:15) |>
+  kable(
+    caption = "Extract fifteen rows from the traffic collisions",
+col.names=c("Year", "Month","Hour","Neighbourhood", "FTR_Collisions", "PD_Collisions"),
+linesep = "", digits = 1, booktabs=TRUE)
+
+
+
+```
+
+Table 1 below shows the top fifteen rows of traffic collisions. The variable "Year" indicates the year in which the accident occurred. The variable "Hour" indicates the time of day on which the accident occurred. The variable "Neighbourhood" provides the neighborhood where the accident occurred. The variable "FTR_Collisions" usually stands for "Failure to Remain", which means whether the driver fled the scene of the crash. The variable "PD_Collisions" usually stands for "Property Damage", which means whether the accident resulted in physical damage. Whether the traffic collision involved damage to vehicles, buildings, roadway infrastructure, etc.
+
+The main focus from the traffic collision data is on the rate of accidents at different times of the day and the extent of accident damage from 2020 to 2023. These data are in a position to prove that there is a relationship between the number of traffic collisions and the time of day. It also responds to the traffic situation in Toronto so that the government can develop different traffic controls to protect the safety of the people on the road. Reduce the harm brought to people by traffic collisions in the future.
+
+
+## Traffic Volumes at Intersections for All Modes
+
+
+In order to investigate motor vehicle collisions in Toronto, I obtained the "Traffic Volumes at Intersections for All Modes" dataset from the Toronto Open Data Portal[@OpenDataTorontoPortal]. This data includes traffic and pedestrian volumes in four different general directions at various times of the day from 2020 to 2023. The dataset consists of 108,310 observations traffic and pedestrian volumes samples. 
+
+By summarizing and analyzing the traffic Volume in different time periods through this dateset, a 24-hour day can be roughly divided into morning and evening peak traffic hours and other ordinary hours. Since activities related to commuting and recreation are more likely to occur during the evening rush hour, usually more vehicles and pedestrians enter the city traffic at this time than usual. After that, it is easy to find the relationship between the rate of vehicle collisions and the morning and evening peak hours. The hypothesis can then be tested.
+
+```{r dadaextract1, echo=FALSE, message=FALSE, warning=FALSE}
+
+traffic_flow <- read_csv(here::here("input/data/raw_data_2020_2029.csv")) |>
+  clean_names() |>
+  drop_na()
+
+traffic_flow <-
+  traffic_flow |>
+  rename(
+    sb_cars = sb_cars_t,
+    nb_cars = nb_cars_t,
+    wb_cars = wb_cars_t,
+    eb_cars = eb_cars_t,
+    date = count_date
+  )
+
+traffic_flow <- traffic_flow |>
+  select(time_start,time_end,sb_cars, nb_cars, wb_cars,eb_cars, ex_peds)
+traffic_flow |>
+  slice(1:10) |>
+  kable(
+    caption = "Extract ten rows from the traffic volumes",
+col.names=c("Time Start","Time End","South car", "North car", "West car","East car","Pedestrians"),
+linesep = "", digits = 1, booktabs=TRUE)
+
+```
+
+Table 2 shows the first ten rows of traffic flow. The variable "Time Start" indicates the start time of the recorded traffic. The variable "Time End" records the end time of the traffic situation. Splits the day into many smaller time periods. Each time period displays 15 minutes of the traffic situation. Traffic flow tends to increase or decrease rapidly, so a 15-minute time period provides a better view of changes. The variable "South car" indicates the number of cars traveling southbound. The variable "North car" indicates the number of cars traveling northbound. The variable "West car" indicates the number of cars traveling weatbound. The variable "East car" indicates the number of cars traveling eastbound. The variable "pedestrians" represents the number of pedestrians within the statistical area.
+
+```{r echo=FALSE, fig.cap="Comparing the number of traffic FTR_collisions each hour from 2020 to 2023", fig.width=8.1, fig.height=3.1}
+
+# Create a bar plot to show number of collisions by accident neighbourhood
+
+ggplot(mapping = aes(x = hour, fill=ftr_colls), data=traffic_data)+ylab("number of vehicle FTR_collisions") + geom_bar()
+```
+
+
+
+Figure 1 shows the number of vehicle crashes at different times of the day from 2020 through 2023. Also shown are the number of hit-and-run, no hit-and-run, and undetermined collisions. Because there is not a simpler and more efficient way to record and store the data, it is often incorrect or lost. The majority of vehicle collisions occur between the hours of 3:00 PM and 6:00 PM. During times of heavy traffic, drivers may commit more rule violations. Some drivers may disobey traffic rules and arbitrarily change lanes of travel because they are in a hurry. They will rarely even yield the right of way for other pedestrians or vehicles. These behaviors not only increase the probability of vehicle collisions, but also largely increase the danger to pedestrians. With this figure we have no evidence to reject that peak vehicle times increase the risk of vehicle collisions.
+
+# Discussion
+
+Analysis of the two datasets showed a relationship between vehicle crashes in Toronto and traffic volumes during the morning and evening rush hours. The different time periods bring different data can be seen in Figure 1. The comparison shows that the number of collisions is significantly higher during the evening rush hour off-duty hours than at other times. The implication in section 2.1 is to summarize and analyze the vehicle collision information from 2020 to 2023, which includes a variety of information such as different times of day, different vehicles, and different collision locations. It is not well illustrated by this information that collisions are directly related to time of day, and better evidence is needed to support this idea. The implication in section 2.2 is that it was determined that there is an increase in traffic and pedestrian traffic during the afternoon off-work hours and that too many vehicles can affect the number of crashes. A likely reason to explain this is that the increase in vehicles makes it more difficult for drivers to drive. Collisions and scrapes are more likely to occur on narrow roads.
+
+The Government should take measures to improve the safety of this transportation system and ensure the rights and interests of driving as a driver and the safety of pedestrians. For example, it should increase traffic control and rationalize the distribution of each trunk road. This is because most of the vehicles' routes at the end of the day are from office areas to residential areas. Assigning different roads by license plate number will reduce the number of cars on the main roads to protect drivers and pedestrians, even though some of them are not on the best routes. The government should try different methods of traffic control and observe the results in the following years to determine a safer policy.
+
+\newpage
+# References
